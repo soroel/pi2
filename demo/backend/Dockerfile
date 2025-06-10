@@ -91,15 +91,12 @@ RUN mkdir -p log \
 ENV NODE_ENV=production \
     NODE_OPTIONS=--max-http-header-size=16384
 
-# Create health check script as root
-RUN echo '#!/bin/sh \n\
-curl -f http://localhost:8080/health || exit 1' > /healthcheck.sh \
-    && chmod +x /healthcheck.sh
-
 # Switch to non-root user
 USER appuser
 
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 CMD ["/healthcheck.sh"]
+# Use a direct command for health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
 
 EXPOSE 8080
 CMD ["pm2-runtime", "processes.config.js", "--env", "production"]
