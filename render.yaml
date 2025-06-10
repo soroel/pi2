@@ -1,0 +1,31 @@
+databases:
+  - name: pi2-mongodb
+    databaseName: pi2
+    user: pi2-user
+    plan: free
+
+services:
+  - type: web
+    name: pi2-backend
+    env: node
+    build:
+      dockerfile: demo/backend/Dockerfile
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: PI_API_KEY
+        sync: false  # Will be set in the Render dashboard
+      - key: PLATFORM_API_URL
+        value: https://api.minepi.com
+      - key: MONGODB_URI
+        fromDatabase:
+          name: pi2-mongodb
+          property: connectionString
+      - key: FRONTEND_URL
+        value: https://www.sorophine.tech
+    plan: free
+    numInstances: 1
+    healthCheckPath: /health
+    autoDeploy: true

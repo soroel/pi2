@@ -112,9 +112,18 @@ const userRouter = express.Router();
 mountUserEndpoints(userRouter);
 app.use('/user', userRouter);
 
-// Health check
+// Health check endpoint for Render
+app.get('/health', (_, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Root endpoint
 app.get('/', (_, res) => {
-  res.status(200).send({ message: "Hello, World!" });
+  res.status(200).json({ 
+    message: "Pi2 Backend API",
+    status: 'operational',
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Error handler
