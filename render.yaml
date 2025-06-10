@@ -23,6 +23,16 @@ services:
         fromDatabase:
           name: pi2-mongodb
           property: connectionString
+      - key: MONGODB_DATABASE_NAME
+        value: pi2
+      - key: MONGODB_USERNAME
+        fromDatabase:
+          name: pi2-mongodb
+          property: database.username
+      - key: MONGODB_PASSWORD
+        fromDatabase:
+          name: pi2-mongodb
+          property: database.password
       - key: FRONTEND_URL
         value: https://www.sorophine.tech
     plan: free

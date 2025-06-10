@@ -1,13 +1,16 @@
 # Stage 1: Build the application
-FROM node:20-alpine AS builder
+FROM node:20.13.1-alpine3.19 AS builder
 
 # Add security updates and required tools with version pinning
-RUN apk add --no-cache --upgrade \
-    ca-certificates \
-    tzdata \
+RUN --mount=type=cache,target=/var/cache/apk \
+    apk add --no-cache --upgrade \
+    ca-certificates=20230506-r0 \
+    tzdata=2024a-r0 \
     && update-ca-certificates \
+    && find / -xdev -perm +6000 -type f -exec chmod a-s {} \; || true \
     && rm -rf /var/cache/apk/* \
-    && rm -rf /tmp/*
+    && rm -rf /tmp/* \
+    && rm -rf /var/tmp/*
 
 # Set timezone and create non-root user
 ENV TZ=UTC \
@@ -37,14 +40,18 @@ COPY ./tsconfig.json ./
 RUN yarn build
 
 # Stage 2: Create the production image
-FROM node:20-alpine
+FROM node:20.13.1-alpine3.19
 
-RUN apk add --no-cache --upgrade \
-    tzdata \
-    ca-certificates \
+# Add security updates and required tools with version pinning
+RUN --mount=type=cache,target=/var/cache/apk \
+    apk add --no-cache --upgrade \
+    ca-certificates=20230506-r0 \
+    tzdata=2024a-r0 \
     && update-ca-certificates \
-    && rm -rf /var/cache/apk/* /tmp/* \
-    && find / -perm /6000 -type f -exec chmod a-s {} \; || true
+    && find / -xdev -perm +6000 -type f -exec chmod a-s {} \; || true \
+    && rm -rf /var/cache/apk/* \
+    && rm -rf /tmp/* \
+    && rm -rf /var/tmp/*
 
 RUN echo "kernel.kptr_restrict=2" > /etc/sysctl.d/kptr_restrict.conf \
     && echo "kernel.dmesg_restrict=1" > /etc/sysctl.d/dmesg_restrict.conf \

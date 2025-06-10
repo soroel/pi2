@@ -19,8 +19,11 @@ export default function mountPaymentsEndpoints(router: Router) {
     */
 
     // find the incomplete order
-    const app = req.app;
-    const orderCollection = app.locals.orderCollection;
+    if (!req.app.locals.db) {
+      return res.status(500).json({ error: 'Database not initialized' });
+    }
+    
+    const orderCollection = req.app.locals.db.collection('orders');
     const order = await orderCollection.findOne({ pi_payment_id: paymentId });
 
     // order doesn't exist 

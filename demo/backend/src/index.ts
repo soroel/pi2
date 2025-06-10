@@ -12,19 +12,18 @@ import mountPaymentsEndpoints from './handlers/payments';
 import mountUserEndpoints from './handlers/users';
 import "./types/session";
 
-const dbName = env.mongo_db_name;
-const mongoUri = `mongodb://${env.mongo_host}/${dbName}`;
-const mongoClientOptions = {
-  authSource: "admin",
-  auth: {
-    username: env.mongo_user,
-    password: env.mongo_password,
-  },
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-};
+console.log(`Connecting to MongoDB at: ${env.mongo_uri}`);
 
 const app: express.Application = express();
+
+// Extend Express Request type to include db
+declare global {
+  namespace Express {
+    interface Locals {
+      db: any; // You might want to replace 'any' with a more specific type
+    }
+  }
+}
 
 // Dev console log
 app.use(logger('dev'));
@@ -65,7 +64,50 @@ const corsOptions: cors.CorsOptions = {
 app.use(cors(corsOptions));
 
 // Fix for TS error on app.options - wrap cors middleware in lambda
-app.options('*', (req, res, next) => cors(corsOptions)(req, res, next));
+app.options('*', (req, res, next) => {
+  const corsHandler = cors(corsOptions);
+  return corsHandler(req, res, next);
+});
+
+// MongoDB connection and server initialization
+async function initializeServer() {
+  try {
+    // Initialize MongoDB connection
+    console.log('Connecting to MongoDB...');
+    const client = new MongoClient(env.mongo_uri);
+    await client.connect();
+    const db = client.db(env.mongo_db_name);
+    
+    // Make db available to request handlers
+    app.locals.db = db;
+    
+    console.log('Successfully connected to MongoDB');
+    
+    // Mount endpoints after successful DB connection
+    mountUserEndpoints(app);
+    mountPaymentsEndpoints(app);
+    
+    // Start the HTTP server
+    const port = process.env.PORT || 8080;
+    app.listen(port, () => {
+      console.log(`Server is running on port ${port}`);
+      console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`Frontend URL: ${env.frontend_url}`);
+      console.log(`MongoDB: ${env.mongo_db_name} @ ${env.mongo_uri.split('@').pop()}`);
+    });
+    
+    // Handle graceful shutdown
+    process.on('SIGTERM', async () => {
+      console.log('SIGTERM received. Closing server...');
+      await client.close();
+      process.exit(0);
+    });
+    
+  } catch (error) {
+    console.error('Failed to initialize server:', error);
+    process.exit(1);
+  }
+}
 
 // Cookie parser
 app.use(cookieParser());
@@ -76,11 +118,13 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   store: MongoStore.create({
-    mongoUrl: mongoUri,
-    mongoOptions: mongoClientOptions,
-    dbName: dbName,
+    mongoUrl: env.mongo_uri,
+    dbName: env.mongo_db_name,
     collectionName: 'user_sessions',
-    ttl: 14 * 24 * 60 * 60 // 14 days in seconds
+    ttl: 14 * 24 * 60 * 60, // 14 days in seconds
+    mongoOptions: {
+      // Add any necessary MongoDB connection options here
+    }
   }),
   cookie: {
     // For cross-origin requests, sameSite must be 'none' and secure must be true
@@ -135,20 +179,22 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   res.status(500).json({ error: 'Internal Server Error' });
 });
 
-// Start server
-app.listen(8000, async () => {
-  try {
-    const client = await MongoClient.connect(mongoUri, mongoClientOptions);
-    const db = client.db(dbName);
-    app.locals.orderCollection = db.collection('orders');
-    app.locals.userCollection = db.collection('users');
-    console.log('Connected to MongoDB on:', mongoUri);
-  } catch (err) {
-    console.error('Connection to MongoDB failed:', err);
-    process.exit(1);
-  }
+const PORT = process.env.PORT || 8000;
 
-  console.log('App platform demo app - Backend listening on port 8000!');
-  console.log(`CORS config: configured to respond to frontend at ${env.frontend_url}`);
-  console.log('Environment:', process.env.NODE_ENV || 'development');
+// Start the application
+initializeServer().catch(error => {
+  console.error('Failed to start server:', error);
+  process.exit(1);
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (err) => {
+  console.error('Unhandled Rejection:', err);
+  process.exit(1);
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+  process.exit(1);
 });

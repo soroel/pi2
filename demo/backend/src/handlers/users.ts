@@ -6,8 +6,11 @@ import platformAPIClient from "../services/platformAPIClient";
 export default function mountUserEndpoints(router: Router) {
   // handle the user auth accordingly
   router.post('/signin', async (req, res) => {
+    if (!req.app.locals.db) {
+      return res.status(500).json({ error: 'Database not initialized' });
+    }
     const auth = req.body.authResult;
-    const userCollection = req.app.locals.userCollection;
+    const userCollection = req.app.locals.db.collection('users');
 
     try {
       // Verify the user's access token with the /me endpoint:
