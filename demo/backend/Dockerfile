@@ -94,7 +94,7 @@ ENV NODE_ENV=production \
 USER appuser
 
 RUN echo '#!/bin/sh \n\
-wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1' > /healthcheck.sh \
+curl -f http://localhost:8080/health || exit 1' > /healthcheck.sh \
     && chmod +x /healthcheck.sh
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 CMD ["/healthcheck.sh"]
