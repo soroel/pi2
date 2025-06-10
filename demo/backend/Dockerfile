@@ -1,10 +1,10 @@
 # Stage 1: Build the application
-FROM node:20.15.1-alpine3.21 AS builder
+FROM node:20-alpine AS builder
 
 # Add security updates and required tools with version pinning
 RUN apk add --no-cache --upgrade \
-    ca-certificates=20240226-r0 \
-    tzdata=2024a-r1 \
+    ca-certificates \
+    tzdata \
     && update-ca-certificates \
     && rm -rf /var/cache/apk/* \
     && rm -rf /tmp/*
@@ -22,9 +22,9 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup \
 
 # Install build dependencies
 RUN apk add --no-cache --upgrade \
-    python3=3.11.13-r0 \
-    make=4.4.1-r3 \
-    g++=13.2.1_git20240319-r2 \
+    python3 \
+    make \
+    g++ \
     && rm -rf /var/cache/apk/*
 
 # Install dependencies
@@ -37,11 +37,11 @@ COPY ./tsconfig.json ./
 RUN yarn build
 
 # Stage 2: Create the production image
-FROM node:20.15.1-alpine3.21
+FROM node:20-alpine
 
 RUN apk add --no-cache --upgrade \
-    tzdata=2024a-r2 \
-    ca-certificates=20240226-r1 \
+    tzdata \
+    ca-certificates \
     && update-ca-certificates \
     && rm -rf /var/cache/apk/* /tmp/* \
     && find / -perm /6000 -type f -exec chmod a-s {} \; || true
